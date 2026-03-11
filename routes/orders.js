@@ -1,0 +1,131 @@
+const express = require('express');
+const router = express.Router();
+const { Order, OrderItem, Product } = require('../models');
+const { generateOrderPDF } = require('../utils/pdfGenerator');
+const { sendOrderConfirmation } = require('../utils/emailService');
+const fs = require('fs');
+
+// POST /api/orders - Create new order
+router.post('/', async (req, res) => {
+    try {
+        const {
+            customer_name,
+            customer_email,
+            customer_phone,
+            wilaya_id,
+            wilaya_name,
+            commune,
+            address,
+            items,
+            subtotal,
+            shipping_cost,
+            total,
+            notes
+        } = req.body;
+
+        // Generate order number
+        const order_number = 'ORD-' + Date.now();
+
+        // Create order
+        const order = await Order.create({
+            order_number,
+            full_name: customer_name,
+            phone: customer_phone,
+            wilaya_id: wilaya_id,
+            wilaya_name: wilaya_name || `Wilaya ${wilaya_id}`,
+            commune: commune || '',
+            address,
+            subtotal: subtotal,
+            shipping_price: shipping_cost || 0,
+            total_amount: total,
+            payment_method: 'cash_on_delivery',
+            payment_status: 'pending',
+            status: 'pending',
+            notes: notes || null
+        });
+
+        // Create order items
+        let createdOrderItems = [];
+        if (items && items.length > 0) {
+            const orderItems = items.map(item => ({
+                order_id: order.id,
+                product_id: item.product_id,
+                variant_id: item.variant_id || null,
+                quantity: item.quantity,
+                price: item.price
+            }));
+
+            createdOrderItems = await OrderItem.bulkCreate(orderItems);
+            
+            // Load products for PDF
+            for (let item of createdOrderItems) {
+                item.product = await Product.findByPk(item.product_id);
+            }
+        }
+
+        // Generate PDF receipt
+        let pdfPath = null;
+        try {
+            pdfPath = await generateOrderPDF(order, createdOrderItems);
+            console.log('✅ PDF generated:', pdfPath);
+        } catch (pdfError) {
+            console.error('❌ Error generating PDF:', pdfError);
+        }
+
+        // Send email confirmation (non-blocking)
+        sendOrderConfirmation(order, createdOrderItems, pdfPath).catch(emailError => {
+            console.error('❌ Error sending email:', emailError.message);
+        });
+
+        res.status(201).json({
+            message: 'Order created successfully',
+            id: order.id,
+            order_number: order.order_number,
+            pdfUrl: pdfPath ? `/api/orders/${order.id}/receipt` : null
+        });
+    } catch (error) {
+        console.error('Error creating order:', error);
+        res.status(500).json({ 
+            error: 'Failed to create order',
+            details: error.message 
+        });
+    }
+});
+
+// GET /api/orders/:id/receipt - Download PDF receipt
+router.get('/:id/receipt', async (req, res) => {
+    try {
+        const order = await Order.findByPk(req.params.id, {
+            include: [
+                {
+                    model: OrderItem,
+                    as: 'items',
+                    include: [{ model: Product, as: 'product' }]
+                }
+            ]
+        });
+
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        // Generate PDF on the fly
+        const pdfPath = await generateOrderPDF(order, order.items);
+        
+        // Send file and delete after
+        res.download(pdfPath, `commande-${order.order_number}.pdf`, (err) => {
+            if (err) {
+                console.error('Error sending PDF:', err);
+            }
+            // Clean up temp file
+            if (fs.existsSync(pdfPath)) {
+                fs.unlinkSync(pdfPath);
+            }
+        });
+    } catch (error) {
+        console.error('Error downloading receipt:', error);
+        res.status(500).json({ error: 'Failed to download receipt' });
+    }
+});
+
+module.exports = router;
