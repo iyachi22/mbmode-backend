@@ -545,15 +545,25 @@ router.post('/categories', categoryUpload.single('image'), async (req, res) => {
   try {
     const { name_fr, name_ar, description_fr, description_ar, is_active, size_type } = req.body;
     
+    console.log('Received category data:', { name_fr, name_ar, description_fr, description_ar, is_active, size_type });
+    
     // Generate slug from name_fr
     const generateSlug = (name) => {
-      return name
+      if (!name || typeof name !== 'string') {
+        console.log('Invalid name for slug generation:', name);
+        return 'category-' + Date.now();
+      }
+      
+      const slug = name
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
         .replace(/\s+/g, '-') // Replace spaces with hyphens
         .replace(/-+/g, '-') // Replace multiple hyphens with single
-        .trim('-') // Remove leading/trailing hyphens
+        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
         + '-' + Date.now(); // Add timestamp for uniqueness
+      
+      console.log('Generated slug:', slug, 'from name:', name);
+      return slug;
     };
     
     const categoryData = {
@@ -565,6 +575,8 @@ router.post('/categories', categoryUpload.single('image'), async (req, res) => {
       is_active,
       slug: generateSlug(name_fr)
     };
+    
+    console.log('Category data to create:', categoryData);
     
     if (req.file) {
       categoryData.image = `/uploads/categories/${req.file.filename}`;
