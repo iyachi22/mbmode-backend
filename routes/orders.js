@@ -3,6 +3,7 @@ const router = express.Router();
 const { Order, OrderItem, Product } = require('../models');
 const { generateOrderPDF } = require('../utils/pdfGenerator');
 const { sendOrderConfirmation } = require('../utils/emailService');
+const { authenticateToken } = require('../middleware/auth');
 const fs = require('fs');
 
 // POST /api/orders - Create new order
@@ -23,13 +24,32 @@ router.post('/', async (req, res) => {
             notes
         } = req.body;
 
+        // Check if user is authenticated (optional)
+        let user_id = null;
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const jwt = require('jsonwebtoken');
+                const token = authHeader.substring(7);
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                user_id = decoded.userId;
+                console.log('✅ Order created by authenticated user:', user_id);
+            } catch (error) {
+                console.log('ℹ️ Order created by guest user (invalid/expired token)');
+            }
+        } else {
+            console.log('ℹ️ Order created by guest user (no token)');
+        }
+
         // Generate order number
         const order_number = 'ORD-' + Date.now();
 
         // Create order
         const order = await Order.create({
             order_number,
+            user_id, // Associate with user if logged in
             full_name: customer_name,
+            email: customer_email,
             phone: customer_phone,
             wilaya_id: wilaya_id,
             wilaya_name: wilaya_name || `Wilaya ${wilaya_id}`,
