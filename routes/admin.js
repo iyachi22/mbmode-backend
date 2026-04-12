@@ -543,9 +543,27 @@ router.get('/categories', async (req, res) => {
 
 router.post('/categories', categoryUpload.single('image'), async (req, res) => {
   try {
-    const { name_fr, name_ar, description_fr, description_ar, is_active } = req.body;
+    const { name_fr, name_ar, description_fr, description_ar, is_active, size_type } = req.body;
+    
+    // Generate slug from name_fr
+    const generateSlug = (name) => {
+      return name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single
+        .trim('-') // Remove leading/trailing hyphens
+        + '-' + Date.now(); // Add timestamp for uniqueness
+    };
+    
     const categoryData = {
-      name_fr, name_ar, description_fr, description_ar, is_active
+      name_fr, 
+      name_ar, 
+      description_fr, 
+      description_ar, 
+      size_type: size_type || 'other',
+      is_active,
+      slug: generateSlug(name_fr)
     };
     
     if (req.file) {
