@@ -477,7 +477,15 @@ router.get('/orders/:id', async (req, res) => {
         {
           model: OrderItem,
           as: 'items',
-          include: [{ model: Product, as: 'product' }]
+          include: [
+            {
+              model: Product, 
+              as: 'product',
+              include: [
+                { model: ProductImage, as: 'images' }
+              ]
+            }
+          ]
         }
       ]
     });
