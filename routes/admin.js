@@ -482,7 +482,8 @@ router.get('/orders/:id', async (req, res) => {
               model: Product, 
               as: 'product',
               include: [
-                { model: ProductImage, as: 'images' }
+                { model: ProductImage, as: 'images' },
+                { model: ProductVariant, as: 'variants' }
               ]
             }
           ]
@@ -493,6 +494,26 @@ router.get('/orders/:id', async (req, res) => {
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
+
+    // Debug: Log the order data structure
+    console.log('Order data for ID', req.params.id, ':', JSON.stringify({
+      id: order.id,
+      items: order.items?.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+        price: item.price,
+        product: item.product ? {
+          id: item.product.id,
+          name_fr: item.product.name_fr,
+          name_ar: item.product.name_ar,
+          sku: item.product.sku,
+          images: item.product.images?.length || 0,
+          variants: item.product.variants?.length || 0
+        } : null
+      }))
+    }, null, 2));
 
     res.json(order);
   } catch (error) {
