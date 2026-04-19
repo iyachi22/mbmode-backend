@@ -28,23 +28,22 @@ const User = sequelize.define('User', {
         type: DataTypes.DATE,
         allowNull: true
     },
-    // Commented out until database is updated
-    // is_blocked: {
-    //     type: DataTypes.BOOLEAN,
-    //     defaultValue: false
-    // },
-    // last_login_at: {
-    //     type: DataTypes.DATE,
-    //     allowNull: true
-    // },
-    // phone: {
-    //     type: DataTypes.STRING,
-    //     allowNull: true
-    // },
-    // address: {
-    //     type: DataTypes.TEXT,
-    //     allowNull: true
-    // }
+    is_blocked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    last_login_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
+    phone: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
+    address: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    }
 }, {
     tableName: 'users',
     timestamps: true,
