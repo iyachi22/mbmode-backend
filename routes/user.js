@@ -42,9 +42,24 @@ router.get('/orders', async (req, res) => {
       { user_id: req.user.id }
     ];
 
-    // Add phone matching if user has phone
+    // Add phone matching if user has phone (try multiple formats)
     if (req.user.phone) {
-      whereConditions.push({ phone: req.user.phone });
+      // Remove all non-digit characters for comparison
+      const cleanPhone = req.user.phone.replace(/\D/g, '');
+      
+      console.log('🔍 Clean phone:', cleanPhone);
+      console.log('🔍 Last 8 digits:', cleanPhone.slice(-8));
+      
+      // Match phone with various formats
+      whereConditions.push({ 
+        phone: {
+          [Op.or]: [
+            req.user.phone,  // Exact match
+            cleanPhone,      // Digits only
+            { [Op.like]: `%${cleanPhone.slice(-8)}%` }  // Last 8 digits
+          ]
+        }
+      });
     }
 
     const where = {
