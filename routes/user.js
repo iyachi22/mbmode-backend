@@ -31,6 +31,12 @@ router.get('/orders', async (req, res) => {
     const offset = (page - 1) * limit;
     const { Op } = require('sequelize');
 
+    console.log('🔍 Fetching orders for user:', {
+      user_id: req.user.id,
+      user_phone: req.user.phone,
+      user_email: req.user.email
+    });
+
     // Build flexible where clause to find orders by user_id OR phone
     const whereConditions = [
       { user_id: req.user.id }
@@ -49,6 +55,8 @@ router.get('/orders', async (req, res) => {
     if (status && ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].includes(status)) {
       where.status = status;
     }
+
+    console.log('🔍 Query where conditions:', JSON.stringify(where, null, 2));
 
     const { count, rows } = await Order.findAndCountAll({
       where,
@@ -69,6 +77,16 @@ router.get('/orders', async (req, res) => {
       offset,
       order: [['created_at', 'DESC']]
     });
+
+    console.log('🔍 Found orders:', count);
+    if (rows.length > 0) {
+      console.log('🔍 First order:', {
+        id: rows[0].id,
+        order_number: rows[0].order_number,
+        user_id: rows[0].user_id,
+        phone: rows[0].phone
+      });
+    }
 
     res.json({
       orders: rows,
